@@ -50,14 +50,17 @@
   --shadow-glow: 0 0 20px rgba(var(--glow-primary), 0.3);
   --shadow-glow-lg: 0 0 40px rgba(var(--glow-primary), 0.4), 0 0 80px rgba(var(--glow-primary), 0.2);
   
-  /* Animation tokens */
-  --duration-fast: 150ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
+  /* Animation tokens - Ultra smooth 60fps */
+  --duration-fast: 120ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-extra-slow: 800ms;
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 @theme inline {
@@ -139,6 +142,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
   transition: all var(--duration-slow) var(--ease-out);
   overflow-x: hidden;
+  /* Enable hardware acceleration for smooth animations */
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 /* Advanced glassmorphism utilities */
@@ -183,27 +191,83 @@ body {
   animation: pulse-glow 3s ease-in-out infinite alternate;
 }
 
+/* Performance-optimized animations */
 @keyframes pulse-glow {
   0% { box-shadow: 0 0 20px rgba(var(--glow-primary), 0.3); }
   100% { box-shadow: 0 0 40px rgba(var(--glow-primary), 0.6), 0 0 80px rgba(var(--glow-primary), 0.3); }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-10px) rotate(2deg); }
+  0%, 100% { 
+    transform: translate3d(0, 0, 0) rotate(0deg); 
+  }
+  50% { 
+    transform: translate3d(0, -10px, 0) rotate(2deg); 
+  }
 }
 
 @keyframes sparkle {
-  0%, 100% { opacity: 0; transform: scale(0); }
-  50% { opacity: 1; transform: scale(1); }
+  0%, 100% { 
+    opacity: 0; 
+    transform: scale(0) rotate(0deg); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1) rotate(180deg); 
+  }
+}
+
+@keyframes wave {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(-10px, -5px, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+  75% { transform: translate3d(10px, -5px, 0); }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .float-animation {
-  animation: float 6s ease-in-out infinite;
+  animation: float 6s var(--ease-smooth) infinite;
+  will-change: transform;
+}
+
+.wave-animation {
+  animation: wave 4s var(--ease-smooth) infinite;
+  will-change: transform;
+}
+
+.breathe-animation {
+  animation: breathe 3s var(--ease-smooth) infinite;
+  will-change: transform;
 }
 
 .sparkle {
-  animation: sparkle 2s ease-in-out infinite;
+  animation: sparkle 2s var(--ease-elastic) infinite;
+  will-change: transform, opacity;
+}
+
+/* Mobile-optimized performance */
+@media (max-width: 768px) {
+  .float-animation,
+  .wave-animation,
+  .breathe-animation {
+    animation-duration: 8s; /* Slower on mobile for better performance */
+  }
+}
+
+/* Hardware acceleration utilities */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 /* Custom scrollbar */

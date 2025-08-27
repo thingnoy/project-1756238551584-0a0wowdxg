@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Eye, Plus, Sparkles, Zap, Heart, Star, TrendingUp } from 'lucide-react'
@@ -13,20 +13,41 @@ interface BubbleProps {
   position: { x: number; y: number }
   delay: number
   rank: number
+  containerSize: { width: number; height: number }
 }
 
-function ArticleBubble({ article, size, position, delay, rank }: BubbleProps) {
-  const radius = Math.max(60, Math.min(180, size))
-  const fontSize = Math.max(12, Math.min(20, size / 10))
+function ArticleBubble({ article, size, position, delay, rank, containerSize }: BubbleProps) {
+  // Mobile-responsive sizing
+  const isMobile = containerSize.width < 768
+  const radius = Math.max(
+    isMobile ? 50 : 60, 
+    Math.min(isMobile ? 120 : 180, size * (isMobile ? 0.7 : 1))
+  )
+  const fontSize = Math.max(
+    isMobile ? 10 : 12, 
+    Math.min(isMobile ? 14 : 20, radius / (isMobile ? 6 : 10))
+  )
+  
   const [isHovered, setIsHovered] = useState(false)
   
-  // Create dynamic gradient based on article rank
+  // Spring animations for ultra-smooth movement
+  const x = useMotionValue(position.x)
+  const y = useMotionValue(position.y)
+  const springX = useSpring(x, { stiffness: 300, damping: 30 })
+  const springY = useSpring(y, { stiffness: 300, damping: 30 })
+  
+  useEffect(() => {
+    x.set(position.x)
+    y.set(position.y)
+  }, [position.x, position.y, x, y])
+  
+  // Dynamic gradient based on article rank
   const gradients = [
-    'from-purple-500 via-pink-500 to-red-500', // Most popular
-    'from-blue-500 via-purple-500 to-pink-500',
-    'from-green-500 via-blue-500 to-purple-500',
-    'from-yellow-500 via-orange-500 to-red-500',
-    'from-pink-500 via-purple-500 to-indigo-500'
+    'from-violet-500 via-purple-500 to-pink-500', // Most popular
+    'from-blue-500 via-cyan-500 to-teal-500',
+    'from-emerald-500 via-green-500 to-lime-500',
+    'from-orange-500 via-red-500 to-pink-500',
+    'from-indigo-500 via-purple-500 to-pink-500'
   ]
   const gradientClass = gradients[Math.min(rank, gradients.length - 1)]
   
@@ -35,12 +56,14 @@ function ArticleBubble({ article, size, position, delay, rank }: BubbleProps) {
 
   return (
     <motion.div
-      className="absolute"
+      className="absolute gpu-accelerated"
+      style={{
+        x: springX,
+        y: springY,
+      }}
       initial={{ 
         scale: 0, 
-        opacity: 0, 
-        x: position.x, 
-        y: position.y,
+        opacity: 0,
         rotateX: -90,
         z: -100
       }}
@@ -52,19 +75,19 @@ function ArticleBubble({ article, size, position, delay, rank }: BubbleProps) {
       }}
       transition={{
         type: "spring",
-        stiffness: 200,
-        damping: 25,
-        delay: delay * 0.15,
+        stiffness: 260,
+        damping: 20,
+        delay: delay * 0.08,
+        duration: 0.6
       }}
       whileHover={{ 
-        scale: 1.2, 
+        scale: isMobile ? 1.1 : 1.2,
         z: 50,
-        transition: { duration: 0.3 }
+        transition: { type: "spring", stiffness: 400, damping: 25 }
       }}
-      style={{
-        left: position.x,
-        top: position.y,
-        perspective: 1000,
+      whileTap={{ 
+        scale: 0.95,
+        transition: { type: "spring", stiffness: 600, damping: 30 }
       }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
@@ -75,29 +98,28 @@ function ArticleBubble({ article, size, position, delay, rank }: BubbleProps) {
             relative flex items-center justify-center
             bg-gradient-to-br ${gradientClass}
             text-white rounded-full cursor-pointer
-            glass-strong glow-primary-lg
+            glass-strong gpu-accelerated
             overflow-hidden
-            float-animation
+            ${isMobile ? '' : 'glow-primary-lg'}
           `}
           style={{
             width: radius,
             height: radius,
-            animationDelay: `${delay * 0.5}s`
           }}
-          whileHover={{ 
-            rotate: [0, -10, 10, -5, 5, 0],
-            transition: { 
-              duration: 1, 
-              ease: "easeInOut",
-              times: [0, 0.2, 0.4, 0.6, 0.8, 1]
-            }
+          animate={{
+            boxShadow: [
+              '0 0 20px rgba(139, 92, 246, 0.3)',
+              '0 0 40px rgba(139, 92, 246, 0.5)',
+              '0 0 20px rgba(139, 92, 246, 0.3)'
+            ]
           }}
-          whileTap={{ 
-            scale: 0.9,
-            rotate: 15
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: "easeInOut"
           }}
         >
-          {/* Animated gradient overlay */}
+          {/* Rotating gradient overlay */}
           <motion.div 
             className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-black/20 rounded-full"
             animate={{
@@ -110,11 +132,11 @@ function ArticleBubble({ article, size, position, delay, rank }: BubbleProps) {
             }}
           />
           
-          {/* Sparkle effects */}
+          {/* Sparkle effects - reduced for mobile performance */}
           <AnimatePresence>
-            {isHovered && (
+            {isHovered && !isMobile && (
               <>
-                {Array.from({ length: 8 }).map((_, i) => (
+                {Array.from({ length: 6 }).map((_, i) => (
                   <motion.div
                     key={i}
                     className="absolute"
@@ -122,37 +144,36 @@ function ArticleBubble({ article, size, position, delay, rank }: BubbleProps) {
                     animate={{
                       opacity: [0, 1, 0],
                       scale: [0, 1, 0],
-                      x: [0, Math.cos(i * 45 * Math.PI / 180) * (radius * 0.6)],
-                      y: [0, Math.sin(i * 45 * Math.PI / 180) * (radius * 0.6)],
+                      x: [0, Math.cos(i * 60 * Math.PI / 180) * (radius * 0.5)],
+                      y: [0, Math.sin(i * 60 * Math.PI / 180) * (radius * 0.5)],
                     }}
                     exit={{ opacity: 0, scale: 0 }}
                     transition={{
-                      duration: 1.5,
+                      duration: 1.2,
                       delay: i * 0.1,
-                      repeat: Infinity,
-                      repeatDelay: 2,
+                      ease: "easeOut"
                     }}
                   >
-                    <Sparkles className="w-3 h-3 text-white/80" />
+                    <Sparkles className="w-2 h-2 text-white/80" />
                   </motion.div>
                 ))}
               </>
             )}
           </AnimatePresence>
           
-          <div className="text-center p-3 z-20 relative">
+          <div className="text-center p-2 z-20 relative">
             {/* Rank indicator for top articles */}
             {rank < 3 && (
               <motion.div 
-                className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-black font-bold text-sm"
-                animate={{
-                  rotate: [0, 10, -10, 0],
-                  scale: [1, 1.1, 1],
+                className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-black font-bold text-xs"
+                initial={{ scale: 0 }}
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0]
                 }}
                 transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
+                  scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                  rotate: { duration: 4, repeat: Infinity, ease: "easeInOut" }
                 }}
               >
                 {rank + 1}
@@ -160,56 +181,56 @@ function ArticleBubble({ article, size, position, delay, rank }: BubbleProps) {
             )}
             
             <motion.div
-              className="mb-2"
+              className="mb-1"
               animate={{ 
                 rotate: [0, 5, -5, 0],
                 scale: [1, 1.05, 1]
               }}
               transition={{ 
-                duration: 3, 
+                duration: 4, 
                 repeat: Infinity,
                 ease: "easeInOut"
               }}
             >
-              <SparkleIcon size={fontSize + 4} />
+              <SparkleIcon size={Math.min(fontSize + 2, 16)} />
             </motion.div>
             
             <h3 
-              className="font-bold leading-tight mb-2 line-clamp-2 drop-shadow-lg"
+              className="font-bold leading-tight mb-1 line-clamp-2 drop-shadow-lg"
               style={{ fontSize: `${fontSize}px` }}
             >
               {article.title}
             </h3>
             
             <motion.div 
-              className="flex items-center justify-center gap-2 bg-black/20 rounded-full px-3 py-1"
+              className="flex items-center justify-center gap-1 bg-black/30 rounded-full px-2 py-1"
               whileHover={{ scale: 1.05 }}
             >
-              <Eye size={fontSize * 0.8} />
+              <Eye size={fontSize * 0.7} />
               <span 
                 className="font-semibold"
-                style={{ fontSize: `${fontSize * 0.8}px` }}
+                style={{ fontSize: `${fontSize * 0.7}px` }}
               >
-                {article.views.toLocaleString()}
+                {article.views > 999 ? `${(article.views/1000).toFixed(1)}k` : article.views}
               </span>
             </motion.div>
           </div>
 
-          {/* Multiple animated rings */}
-          {[1, 2, 3].map((ring) => (
+          {/* Animated rings - fewer on mobile */}
+          {Array.from({ length: isMobile ? 2 : 3 }).map((_, ring) => (
             <motion.div
               key={ring}
-              className="absolute inset-0 rounded-full border-2 border-white/20"
+              className="absolute inset-0 rounded-full border border-white/20"
               animate={{
                 scale: [1, 1.3, 1],
-                opacity: [0.8, 0.2, 0.8],
+                opacity: [0.6, 0.2, 0.6],
                 rotate: 360,
               }}
               transition={{
                 duration: 4 + ring,
                 repeat: Infinity,
                 ease: "easeInOut",
-                delay: ring * 0.5,
+                delay: ring * 0.3,
               }}
             />
           ))}
@@ -219,17 +240,19 @@ function ArticleBubble({ article, size, position, delay, rank }: BubbleProps) {
   )
 }
 
-function AddArticleBubble({ position }: { position: { x: number; y: number } }) {
+function AddArticleBubble({ position, containerSize }: { 
+  position: { x: number; y: number }
+  containerSize: { width: number; height: number }
+}) {
   const [isHovered, setIsHovered] = useState(false)
+  const isMobile = containerSize.width < 768
 
   return (
     <motion.div
-      className="absolute"
+      className="absolute gpu-accelerated"
       initial={{ 
         scale: 0, 
         opacity: 0, 
-        x: position.x, 
-        y: position.y,
         rotateY: -180 
       }}
       animate={{ 
@@ -239,13 +262,17 @@ function AddArticleBubble({ position }: { position: { x: number; y: number } }) 
       }}
       transition={{
         type: "spring",
-        stiffness: 200,
-        damping: 25,
-        delay: 0.5,
+        stiffness: 260,
+        damping: 20,
+        delay: 0.4,
       }}
       whileHover={{ 
-        scale: 1.3,
-        transition: { duration: 0.3 }
+        scale: isMobile ? 1.15 : 1.3,
+        transition: { type: "spring", stiffness: 400, damping: 25 }
+      }}
+      whileTap={{ 
+        scale: 0.9,
+        transition: { type: "spring", stiffness: 600, damping: 30 }
       }}
       style={{
         left: position.x,
@@ -256,24 +283,29 @@ function AddArticleBubble({ position }: { position: { x: number; y: number } }) 
     >
       <Link href="/write">
         <motion.div
-          className="
+          className={`
             relative flex items-center justify-center
-            w-24 h-24 glass-strong
-            border-3 border-dashed 
+            ${isMobile ? 'w-16 h-16' : 'w-20 h-20'} glass-strong
+            border-2 border-dashed 
             rounded-full cursor-pointer
-            glow-primary
+            ${isMobile ? '' : 'glow-primary'}
             hover:border-solid
-            group
-          "
+            gpu-accelerated
+          `}
           style={{
             borderColor: 'var(--primary-solid)',
           }}
           whileHover={{ 
             rotate: [0, 180, 360],
             borderColor: 'var(--accent-solid)',
-            transition: { duration: 0.8, ease: "easeInOut" }
+            transition: { duration: 0.6, ease: "easeInOut" }
           }}
-          whileTap={{ scale: 0.9 }}
+          animate={{
+            scale: [1, 1.05, 1],
+          }}
+          transition={{
+            scale: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+          }}
         >
           {/* Pulsing background */}
           <motion.div
@@ -286,7 +318,7 @@ function AddArticleBubble({ position }: { position: { x: number; y: number } }) 
               opacity: [0.3, 0.1, 0.3],
             }}
             transition={{
-              duration: 3,
+              duration: 2.5,
               repeat: Infinity,
               ease: "easeInOut",
             }}
@@ -294,19 +326,23 @@ function AddArticleBubble({ position }: { position: { x: number; y: number } }) 
           
           <motion.div
             animate={{ 
-              rotate: isHovered ? 180 : 0,
+              rotate: isHovered ? 135 : 0,
               scale: isHovered ? 1.2 : 1
             }}
-            transition={{ duration: 0.3 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 300, 
+              damping: 20 
+            }}
           >
-            <Plus className="w-8 h-8 text-white z-10 relative" />
+            <Plus className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} text-white z-10 relative`} />
           </motion.div>
           
-          {/* Sparkle effects on hover */}
+          {/* Mobile-optimized sparkle effects */}
           <AnimatePresence>
             {isHovered && (
               <>
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({ length: isMobile ? 3 : 4 }).map((_, i) => (
                   <motion.div
                     key={i}
                     className="absolute"
@@ -314,16 +350,16 @@ function AddArticleBubble({ position }: { position: { x: number; y: number } }) 
                     animate={{
                       opacity: [0, 1, 0],
                       scale: [0, 1, 0],
-                      x: [0, Math.cos(i * 60 * Math.PI / 180) * 40],
-                      y: [0, Math.sin(i * 60 * Math.PI / 180) * 40],
+                      x: [0, Math.cos(i * 90 * Math.PI / 180) * 30],
+                      y: [0, Math.sin(i * 90 * Math.PI / 180) * 30],
                     }}
                     exit={{ opacity: 0, scale: 0 }}
                     transition={{
-                      duration: 1,
+                      duration: 0.8,
                       delay: i * 0.1,
                     }}
                   >
-                    <Plus className="w-4 h-4 text-white/60" />
+                    <Plus className="w-3 h-3 text-white/70" />
                   </motion.div>
                 ))}
               </>
@@ -337,141 +373,173 @@ function AddArticleBubble({ position }: { position: { x: number; y: number } }) 
 
 export function BubbleDashboard() {
   const [articles, setArticles] = useState<Article[]>([])
-  const [containerSize, setContainerSize] = useState({ width: 1200, height: 800 })
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [isMounted, setIsMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const stats = articleStorage.getArticleStats()
     setArticles(stats.articles)
+    setIsMounted(true)
 
     const updateSize = () => {
+      const isMobile = window.innerWidth < 768
       setContainerSize({
-        width: Math.min(window.innerWidth - 100, 1400),
-        height: Math.min(window.innerHeight - 150, 900),
+        width: Math.min(window.innerWidth - (isMobile ? 20 : 100), isMobile ? 380 : 1400),
+        height: Math.min(window.innerHeight - (isMobile ? 100 : 150), isMobile ? 500 : 800),
       })
     }
 
     updateSize()
     window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
+    
+    // Refresh articles when dashboard is visible
+    const interval = setInterval(() => {
+      const newStats = articleStorage.getArticleStats()
+      setArticles(newStats.articles)
+    }, 5000)
+
+    return () => {
+      window.removeEventListener('resize', updateSize)
+      clearInterval(interval)
+    }
   }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (containerRef.current) {
+    if (containerRef.current && containerSize.width >= 768) {
       const rect = containerRef.current.getBoundingClientRect()
       setMousePosition({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       })
     }
-  }, [])
+  }, [containerSize.width])
 
-  // Enhanced bubble sizing and positioning
+  if (!isMounted || containerSize.width === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <motion.div
+          className="w-12 h-12 rounded-full border-4 border-t-transparent"
+          style={{ borderColor: 'var(--primary-solid)' }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
+    )
+  }
+
+  const isMobile = containerSize.width < 768
+  
+  // Enhanced bubble sizing with mobile considerations
   const maxViews = Math.max(...articles.map(a => a.views), 1)
   const bubblesWithSizes = articles.map((article, index) => ({
     article,
-    size: 80 + Math.pow(article.views / maxViews, 0.7) * 100, // More dramatic size differences
+    size: (isMobile ? 60 : 80) + Math.pow(article.views / maxViews, 0.6) * (isMobile ? 60 : 100),
     rank: index
   }))
 
-  // More sophisticated positioning using golden spiral
+  // Mobile-optimized positioning algorithm
   const positionedBubbles = bubblesWithSizes.map((bubble, index) => {
-    const angle = index * 2.4 // Golden angle
-    const radius = Math.sqrt(index + 1) * 60
-    
-    const centerX = containerSize.width / 2
-    const centerY = containerSize.height / 2
-    
-    // Apply some controlled randomness
-    const randomOffset = {
-      x: (Math.random() - 0.5) * 60,
-      y: (Math.random() - 0.5) * 60,
-    }
+    if (isMobile) {
+      // Grid-based layout for mobile
+      const cols = 2
+      const rows = Math.ceil(bubblesWithSizes.length / cols)
+      const col = index % cols
+      const row = Math.floor(index / cols)
+      
+      const cellWidth = containerSize.width / cols
+      const cellHeight = containerSize.height / (rows + 1)
+      
+      const position = {
+        x: col * cellWidth + cellWidth/2 - bubble.size/2 + (Math.random() - 0.5) * 30,
+        y: row * cellHeight + cellHeight/2 - bubble.size/2 + (Math.random() - 0.5) * 20,
+      }
 
-    const position = {
-      x: centerX + Math.cos(angle) * radius + randomOffset.x - bubble.size / 2,
-      y: centerY + Math.sin(angle) * radius + randomOffset.y - bubble.size / 2,
-    }
+      return { ...bubble, position }
+    } else {
+      // Golden spiral for desktop
+      const angle = index * 2.4 // Golden angle
+      const radius = Math.sqrt(index + 1) * 50
+      
+      const centerX = containerSize.width / 2
+      const centerY = containerSize.height / 2
+      
+      const randomOffset = {
+        x: (Math.random() - 0.5) * 40,
+        y: (Math.random() - 0.5) * 40,
+      }
 
-    return {
-      ...bubble,
-      position,
+      const position = {
+        x: Math.max(bubble.size/2, Math.min(containerSize.width - bubble.size/2, 
+          centerX + Math.cos(angle) * radius + randomOffset.x - bubble.size / 2)),
+        y: Math.max(bubble.size/2, Math.min(containerSize.height - bubble.size/2,
+          centerY + Math.sin(angle) * radius + randomOffset.y - bubble.size / 2)),
+      }
+
+      return { ...bubble, position }
     }
   })
 
   const addButtonPosition = {
-    x: containerSize.width / 2 - 48,
-    y: containerSize.height / 2 - 48,
+    x: containerSize.width / 2 - (isMobile ? 32 : 40),
+    y: isMobile ? containerSize.height - 80 : containerSize.height / 2 - (isMobile ? 32 : 40),
   }
 
   return (
-    <div 
-      className="relative w-full min-h-screen overflow-hidden"
-      style={{ background: 'var(--background)' }}
-    >
-      {/* Dynamic background with mouse interaction */}
-      <motion.div
-        className="absolute inset-0 opacity-30"
-        style={{
-          background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, var(--glow-primary) 0%, transparent 50%)`,
-        }}
-      />
+    <div className="relative w-full flex justify-center">
+      {/* Dynamic background with mobile optimization */}
+      {!isMobile && (
+        <motion.div
+          className="absolute inset-0 opacity-20 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, var(--glow-primary) 0%, transparent 50%)`,
+          }}
+        />
+      )}
       
       <motion.div
         ref={containerRef}
-        className="relative mx-auto glass rounded-3xl border-2"
+        className="relative glass rounded-3xl border-2 gpu-accelerated"
         style={{
           width: containerSize.width,
           height: containerSize.height,
           borderColor: 'var(--border)',
-          marginTop: '2rem',
+          margin: isMobile ? '1rem' : '2rem',
         }}
-        initial={{ opacity: 0, scale: 0.8, rotateX: -15 }}
-        animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
         transition={{ 
-          duration: 1, 
-          ease: "easeOut",
-          staggerChildren: 0.1
+          type: "spring",
+          stiffness: 200,
+          damping: 25,
+          duration: 0.6
         }}
         onMouseMove={handleMouseMove}
       >
-        {/* Animated grid background */}
-        <div className="absolute inset-0 opacity-10">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-px h-full bg-gradient-to-b from-transparent via-white to-transparent"
-              style={{ left: `${(i + 1) * 5}%` }}
-              animate={{
-                opacity: [0.1, 0.3, 0.1],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                delay: i * 0.2,
-              }}
-            />
-          ))}
-          {Array.from({ length: 16 }).map((_, i) => (
-            <motion.div
-              key={`h-${i}`}
-              className="absolute h-px w-full bg-gradient-to-r from-transparent via-white to-transparent"
-              style={{ top: `${(i + 1) * 6.25}%` }}
-              animate={{
-                opacity: [0.1, 0.3, 0.1],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                delay: i * 0.2,
-              }}
-            />
-          ))}
-        </div>
+        {/* Simplified grid background for mobile */}
+        {!isMobile && (
+          <div className="absolute inset-0 opacity-5">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-px h-full bg-gradient-to-b from-transparent via-white to-transparent"
+                style={{ left: `${(i + 1) * 10}%` }}
+                animate={{
+                  opacity: [0.05, 0.2, 0.05],
+                }}
+                transition={{
+                  duration: 6,
+                  repeat: Infinity,
+                  delay: i * 0.5,
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Article bubbles */}
-        <AnimatePresence>
+        <AnimatePresence mode="popLayout">
           {positionedBubbles.map((bubble, index) => (
             <ArticleBubble
               key={bubble.article.id}
@@ -480,62 +548,43 @@ export function BubbleDashboard() {
               position={bubble.position}
               delay={index}
               rank={bubble.rank}
+              containerSize={containerSize}
             />
           ))}
         </AnimatePresence>
 
         {/* Add article button */}
-        <AddArticleBubble position={addButtonPosition} />
+        <AddArticleBubble 
+          position={addButtonPosition} 
+          containerSize={containerSize}
+        />
 
-        {/* Enhanced floating particles */}
-        {Array.from({ length: 30 }).map((_, i) => (
+        {/* Optimized floating particles */}
+        {Array.from({ length: isMobile ? 8 : 15 }).map((_, i) => (
           <motion.div
             key={i}
-            className="absolute rounded-full sparkle"
+            className="absolute rounded-full pointer-events-none"
             style={{
-              width: Math.random() * 4 + 2,
-              height: Math.random() * 4 + 2,
-              background: i % 3 === 0 ? 'var(--glow-primary)' : 
-                         i % 3 === 1 ? 'var(--glow-secondary)' : 'var(--glow-accent)',
+              width: isMobile ? 2 : 3,
+              height: isMobile ? 2 : 3,
+              background: `var(--glow-${i % 3 === 0 ? 'primary' : i % 3 === 1 ? 'secondary' : 'accent'})`,
               left: Math.random() * containerSize.width,
               top: Math.random() * containerSize.height,
             }}
             animate={{
-              y: [0, -30, 0],
-              x: [0, Math.sin(i) * 20, 0],
-              opacity: [0, 1, 0],
-              scale: [0, 1, 0],
+              y: [0, -20, 0],
+              x: [0, Math.sin(i) * 10, 0],
+              opacity: [0, 0.6, 0],
+              scale: [0.5, 1, 0.5],
             }}
             transition={{
-              duration: 4 + Math.random() * 4,
+              duration: isMobile ? 6 : 4,
               repeat: Infinity,
-              delay: Math.random() * 4,
+              delay: Math.random() * 3,
               ease: "easeInOut",
             }}
           />
         ))}
-
-        {/* Ambient light effects */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div 
-            className="absolute w-96 h-96 rounded-full opacity-20 blur-3xl"
-            style={{
-              background: 'var(--primary)',
-              top: '10%',
-              left: '10%',
-              animation: 'float 8s ease-in-out infinite',
-            }}
-          />
-          <div 
-            className="absolute w-96 h-96 rounded-full opacity-15 blur-3xl"
-            style={{
-              background: 'var(--secondary)',
-              bottom: '10%',
-              right: '10%',
-              animation: 'float 10s ease-in-out infinite reverse',
-            }}
-          />
-        </div>
       </motion.div>
     </div>
   )

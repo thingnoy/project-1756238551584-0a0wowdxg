@@ -1,4 +1,4 @@
-import { ArticleEditor } from '@/components/article-editor'
+import { ArticleEditor } from '@/components/article-editor-mobile'
 
 export const metadata = {
   title: 'Write Article - Personal Blog',
